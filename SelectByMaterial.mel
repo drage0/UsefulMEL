@@ -1,44 +1,72 @@
 /*
- * Note: This only works if all selected faces are from the same object!
+ * SelectByMaterial
+ *
+ * For the currently selected faces,
+ * find what material they use and selected all faces in the current object that share the same materials.
+ *
+ * Note: The program works correctly if selected faces are from only one object or an object is selected!
+ * Note: If an object is selected, all faces of the object is returned.
+ * Todo: When an object is selected, find faster way of selecting all faces, appendStringArray is slow.
  */
 global proc SelectByMaterial()
 {
-	string $selection[] = `ls -l -sl -fl`;
-	string $object      = `match "[^\\.]+" $selection[0]`; /* Everything up until .f[] from the selection string. */
-	string $shaderlist[];
-	string $result[];
-	int    $i;
-	
-	if (size($selection) <= 0)
-	{
-		error "Select some faces first!";
-	}
-	
-	hyperShade -smn;
-	
-	$shaderlist = `ls -sl`;
-	for ($i = 0; $i < size($shaderlist); $i++)
-	{
-		string $shader = $shaderlist[$i];
-		string $facelist[];
-		int    $j;
-		
-		print ("Looking for faces with "+$shader+"... ");
-		hyperShade -o $shader;
-		$facelist = `ls -long -sl`;
-		
-		print ("Face count is "+size($facelist)+".\n");
-		for ($j = 0; $j < size($facelist); $j++)
-		{
-			string $face = $facelist[$j];
-			
-			if (`match $object $face` != "")
-			{
-				appendStringArray($result, { $face }, 1);
-			}
-		}
-	}
-	
-	select -clear;
-	select -replace $result;
+    string $selection[] = `ls -l -sl -fl`;
+    string $object      = `match "[^\\.]+" $selection[0]`; /* Everything up until .f[] from the selection string. */
+    string $shaderlist[];
+    string $result[];
+    int    $i;
+    
+    print ("Target object: "+$object+"\n");
+    
+    if (size($selection) <= 0)
+    {
+        error "Select some faces first!";
+    }
+    
+    hyperShade -smn;
+    
+    $shaderlist = `ls -sl`;
+    for ($i = 0; $i < size($shaderlist); $i++)
+    {
+        string $shader = $shaderlist[$i];
+        string $hitlist[];
+        int    $j;
+        
+        print ("Looking for faces with "+$shader+"...\n");
+        hyperShade -o $shader;
+        $hitlist = `ls -long -sl`;
+        
+        print ("Number of objects with selected materials is "+size($hitlist)+".\n");
+        print $hitlist;
+        for ($j = 0; $j < size($hitlist); $j++)
+        {
+            string $hit = $hitlist[$j];
+            
+            if (`match $object $hit` != "")
+            {
+                /* Check if this is a face component... */
+                if (`match "^.*\\.f\\[.*\\]" $hit` != "")
+                {
+                    appendStringArray($result, { $hit }, 1);
+                    print ("Append: "+$hit+"\n");
+                }
+                /* This is an entire object and it's comprised of only one material... */
+                else
+                {
+                    int $facecountlist[] = `polyEvaluate -face $hit`; /* polyEvaluate returns an array, even if one object is evaluated. */
+                    int $facecount       = $facecountlist[0];
+                    int $k;
+                    
+                    for ($k = 0; $k < $facecount; $k++)
+                    {
+                        $face = $hit+".f["+$k+"]";
+                        
+                        appendStringArray($result, { $face }, 1);
+                    }
+                }
+            }
+        }
+    }
+    
+    select -replace $result;
 }
