@@ -1,0 +1,44 @@
+/*
+ * Note: This only works if all selected faces are from the same object!
+ */
+global proc SelectByMaterial()
+{
+	string $selection[] = `ls -l -sl -fl`;
+	string $object      = `match "[^\\.]+" $selection[0]`; /* Everything up until .f[] from the selection string. */
+	string $shaderlist[];
+	string $result[];
+	int    $i;
+	
+	if (size($selection) <= 0)
+	{
+		error "Select some faces first!";
+	}
+	
+	hyperShade -smn;
+	
+	$shaderlist = `ls -sl`;
+	for ($i = 0; $i < size($shaderlist); $i++)
+	{
+		string $shader = $shaderlist[$i];
+		string $facelist[];
+		int    $j;
+		
+		print ("Looking for faces with "+$shader+"... ");
+		hyperShade -o $shader;
+		$facelist = `ls -long -sl`;
+		
+		print ("Face count is "+size($facelist)+".\n");
+		for ($j = 0; $j < size($facelist); $j++)
+		{
+			string $face = $facelist[$j];
+			
+			if (`match $object $face` != "")
+			{
+				appendStringArray($result, { $face }, 1);
+			}
+		}
+	}
+	
+	select -clear;
+	select -replace $result;
+}
